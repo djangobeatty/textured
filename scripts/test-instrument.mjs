@@ -30,6 +30,7 @@ const { usePlayerLocation } = await import(compile('hooks/use-player-location.ts
 }));
 const { useInstrument } = await import(compile('hooks/use-instrument.ts', {
   '@/lib/semantic': semanticUrl,
+  '@/lib/browser-session': compile('lib/browser-session.ts'),
   '@/lib/synth': dataUrl(`export class SynthEngine {
     playing = false; closed = false;
     update(patch) { this.patch = patch; }
@@ -171,7 +172,60 @@ try {
   assert.equal(shareContainer.querySelector('a'), null, 'fallback cannot navigate inside the frame');
   await act(async () => { shareRoot.render(createElement(DescriptionHeader, { key: 'two', description: 'dolphins swimming' })); });
   assert.equal(shareContainer.querySelector('input'), null, 'editing clears the stale share fallback');
+
+  // Safari can discard every embedded Set-Cookie. Exercise the real hook with
+  // no cookie jar: all requests must retain the server-issued token instead.
+  await act(async () => { root.unmount(); });
+  root = null;
+  let sessionToken = 'a'.repeat(64);
+  let issuedSessions = 0;
+  let submittedDescriptions = 0;
+  let expired = false;
+  const sessionRequests = [];
+  globalThis.fetch = async (_url, options = {}) => {
+    const headers = new Headers(options.headers);
+    assert.equal(headers.get('X-Textured-Embed'), '1');
+    assert.equal(headers.get('cookie'), null, 'the test browser sends no cookies');
+    sessionRequests.push(headers.get('X-Textured-Session'));
+    if (options.method !== 'POST') {
+      if (expired || headers.get('X-Textured-Session') !== sessionToken) issuedSessions++;
+      if (expired) { sessionToken = 'b'.repeat(64); expired = false; }
+      return Response.json({ configured: true, usage: { ...usage, remaining: 50 - submittedDescriptions }, sessionToken });
+    }
+    if (expired) return Response.json({ code: 'SESSION_REQUIRED' }, { status: 401 });
+    assert.equal(headers.get('X-Textured-Session'), sessionToken);
+    submittedDescriptions++;
+    return Response.json({ patch: DEFAULT_PATCH, model: 'fixture', elapsedMs: 10, answers: {}, usage: { ...usage, remaining: 50 - submittedDescriptions } });
+  };
+  await act(async () => { root = createRoot(container); root.render(createElement(Probe)); });
+  await act(async () => { await current.interpret('a mobile ocean'); });
+  assert.equal(current.source, 'live', 'interpretation works when all cookies are blocked');
+  assert.equal(current.usage.remaining, 49);
+  await act(async () => { root.unmount(); });
+  root = null;
+  await act(async () => { root = createRoot(container); root.render(createElement(Probe)); });
+  assert.equal(issuedSessions, 1, 'reloading reuses the stored anonymous token');
+  assert.equal(current.usage.remaining, 49);
+  expired = true;
+  await act(async () => { await current.interpret('a renewed ocean'); });
+  assert.equal(sessionRequests.at(-1), 'b'.repeat(64), '401 recovery retries with the replacement token');
+  assert.equal(current.error, '');
+  assert.equal(issuedSessions, 2);
+  assert.ok(messages.every(({ data }) => !JSON.stringify(data).includes(sessionToken)), 'no session token is posted to the host');
+  await act(async () => { root.unmount(); });
+  root = null;
+
+  // Even when all persistent storage is denied, a page visit keeps one session.
+  Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new Error('Storage denied'); } });
+  await act(async () => { root = createRoot(container); root.render(createElement(Probe)); });
+  const issuedBeforePlaying = issuedSessions;
+  await act(async () => { await current.interpret('private ocean'); });
+  await act(async () => { window.dispatchEvent(new window.Event('focus')); });
+  await act(async () => { await current.interpret('another private ocean'); });
+  assert.equal(issuedSessions, issuedBeforePlaying, 'blocked storage does not create a new session per description or focus');
+  assert.equal(current.error, '');
   console.log('PASS React hydration, URL prefill, playback, cancelled requests, manual edits, legacy patches, trusted embed pause and clipboard fallback.');
+  console.log('PASS cookieless embedded interpretation, session reuse, expiry recovery and blocked-storage fallback.');
 } finally {
   await act(async () => { root?.unmount(); shareRoot?.unmount(); });
   mock.timers.reset();

@@ -6,13 +6,7 @@ import type { PlayerLocation } from "@/hooks/use-player-location";
 import { EXAMPLES, validPatch, type Patch, type Dimension, type Interpretation } from "@/lib/semantic";
 import { SynthEngine } from "@/lib/synth";
 import type { Usage } from "@/lib/quota";
-
-// In an iframe, use a separate partitioned, HttpOnly session cookie. The
-// browser still talks only to the player's own API origin.
-function embedHeaders(): Record<string, string> {
-  return typeof window !== "undefined" && window.parent !== window && new URLSearchParams(location.search).get("embed") === "1"
-    ? { "X-Textured-Embed": "1" } : {};
-}
+import { createBrowserSession } from "@/lib/browser-session";
 
 export function useInstrument(initial: PlayerLocation) {
   const [descriptionOverride, setDescription] = useState<string | null>(null);
@@ -46,6 +40,7 @@ export function useInstrument(initial: PlayerLocation) {
   const lastAttempted = useRef("");
   const playingRef = useRef(false);
   const usageRef = useRef<Usage | null>(null);
+  const session = useRef<ReturnType<typeof createBrowserSession> | null>(null);
   const statusRequest = useRef<Promise<void> | null>(null);
   const updateUsage = useCallback((next: Usage) => {
     const previous = usageRef.current;
@@ -58,10 +53,12 @@ export function useInstrument(initial: PlayerLocation) {
   }, []);
   const refreshUsage = useCallback(() => {
     if (statusRequest.current) return statusRequest.current;
-    statusRequest.current = fetch("/api/interpret", { cache: "no-store", headers: embedHeaders() })
+    const browserSession = session.current ??= createBrowserSession();
+    statusRequest.current = fetch("/api/interpret", { cache: "no-store", headers: browserSession.headers() })
       .then(async (response) => {
-        const data = await response.json() as { configured?: boolean; usage?: Usage; error?: string; turnstileSiteKey?: string | null };
+        const data = await response.json() as { configured?: boolean; usage?: Usage; error?: string; turnstileSiteKey?: string | null; sessionToken?: string };
         if (!response.ok || !data.usage) throw new Error(data.error || "Could not check today's allowance. Please try again.");
+        browserSession.accept(data.sessionToken);
         turnstileKey.current = data.turnstileSiteKey ?? null;
         setConfigured(!!data.configured);
         updateUsage(data.usage);
@@ -146,7 +143,7 @@ export function useInstrument(initial: PlayerLocation) {
         if (abort.signal.aborted || id !== request.current.seq) return null;
         const send = () => fetch("/api/interpret", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...embedHeaders() },
+          headers: { "Content-Type": "application/json", ...session.current?.headers() },
           body: JSON.stringify({ description: brief, turnstileToken }),
           signal: abort.signal,
         });
@@ -161,8 +158,6 @@ export function useInstrument(initial: PlayerLocation) {
         }
         if (data.usage) updateUsage(data.usage);
         if (id !== request.current.seq) return null;
-        if (response.status === 401 && data.code === "SESSION_REQUIRED" && embedHeaders()["X-Textured-Embed"])
-          throw new Error("This browser could not save the session. Allow cookies for this player and retry. You can still play and adjust the controls.");
         if (!response.ok)
           throw new Error(data.error || "Could not interpret that sound.");
         if (!validPatch(data.patch))

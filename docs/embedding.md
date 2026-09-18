@@ -43,13 +43,20 @@ API CORS access. Parent/frame messages verify both source window and exact
 origin. They contain readiness, height and pause commands, never credentials.
 The loader does not expose a general-purpose API proxy to the parent.
 
-Anonymous embedded sessions use a separate Secure, HttpOnly,
-`SameSite=None; Partitioned` cookie. Their daily allowance is per browser token
-within the embedding top-level site in supporting browsers. Standalone sessions
-keep their Strict cookie and separate allowance. Reloads reuse a valid token;
-clearing cookies or obtaining another session can yield another allowance.
-If the browser cannot persist the embedded cookie, the player asks the visitor to
-allow cookies and retry. Manual controls remain usable.
+Anonymous embedded sessions support both a Secure, HttpOnly,
+`SameSite=None; Partitioned` cookie and an explicit opaque session token. This
+lets Safari and other browsers interpret descriptions even when embedded cookies
+are blocked. The player keeps the token in its own origin's local storage,
+keyed by the containing page's origin, and sends it in an `X-Textured-Session`
+header to its own API. It is never included in URLs or messages to the parent.
+The server returns it only in private/no-store embedded session responses and
+stores only its hash. Both transports use the same server-side daily allowance
+and 30-day expiry; token possession does not bypass Turnstile.
+
+If persistent storage is also blocked, the token stays in memory for that page
+visit. Reloading in that case, clearing storage or obtaining another session can
+yield another allowance. Standalone sessions keep their Strict, HttpOnly cookie;
+their token is never returned to JavaScript.
 
 The iframe is UI isolation, **not API authentication**. A caller can still imitate
 requests. The existing atomic D1 daily limit applies in the embed, but bot

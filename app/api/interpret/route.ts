@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const db = database();
     const identity = await quotaIdentity(db, request, { create: true });
     const usage = await readUsage(db, identity!, dailyLimit(runtime().TYPESAFE_DAILY_LIMIT));
-    return json({ configured: !!apiKey(), usage, turnstileSiteKey: siteKey }, 200, identity?.cookie ? { "Set-Cookie": identity.cookie } : {});
+    return json({ configured: !!apiKey(), usage, turnstileSiteKey: siteKey, ...(identity?.sessionToken ? { sessionToken: identity.sessionToken } : {}) }, 200, identity?.cookie ? { "Set-Cookie": identity.cookie } : {});
   } catch (error) {
     if (error instanceof VerificationError) return json({ error: error.message }, error.status);
     console.error("Daily allowance status unavailable");

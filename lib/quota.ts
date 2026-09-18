@@ -10,6 +10,7 @@ export type QuotaIdentity = {
   subject: string;
   scope: Usage["scope"];
   cookie?: string;
+  sessionToken?: string;
 };
 
 const DAY = 86_400_000;
@@ -27,8 +28,8 @@ async function hash(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-// Allowances belong to an anonymous browser token. Nothing in the request body
-// or headers can nominate a different subject.
+// Allowances belong to a server-issued random token, never a caller-chosen ID.
+// Embedded players may return that token explicitly when cookies are blocked.
 export async function quotaIdentity(
   db: QuotaDatabase,
   request: Request,
@@ -41,13 +42,15 @@ export async function quotaIdentity(
   const cookieName = embedded ? "__Host-textured_embed" : localHttp ? "textured_session" : "__Host-textured_session";
   const cookies = (request.headers.get("cookie") ?? "").split(";").map((part) => part.trim());
   const values = cookies.filter((part) => part.startsWith(`${cookieName}=`));
-  const token = values.length === 1 ? values[0].slice(cookieName.length + 1) : "";
-  if (/^[a-f0-9]{64}$/.test(token)) {
+  const cookieToken = values.length === 1 ? values[0].slice(cookieName.length + 1) : "";
+  const tokens = [cookieToken, ...(embedded ? [request.headers.get("X-Textured-Session") ?? ""] : [])];
+  for (const token of new Set(tokens)) {
+    if (!/^[a-f0-9]{64}$/.test(token)) continue;
     const tokenHash = await hash(token);
     const session = await db.prepare(
       "SELECT token_hash FROM browser_sessions WHERE token_hash = ?1 AND expires_at > ?2",
     ).bind(tokenHash, now).first();
-    if (session) return { subject: `browser:${tokenHash}`, scope: "browser" };
+    if (session) return { subject: `browser:${tokenHash}`, scope: "browser", ...(embedded ? { sessionToken: token } : {}) };
   }
   if (!options.create) return null;
 
@@ -64,6 +67,7 @@ export async function quotaIdentity(
   return {
     subject: `browser:${tokenHash}`,
     scope: "browser",
+    ...(embedded ? { sessionToken: newToken } : {}),
     cookie: `${cookieName}=${newToken}; Path=/; Max-Age=${SESSION_SECONDS}; HttpOnly; ${embedded ? "SameSite=None; Secure; Partitioned" : `SameSite=Strict${localHttp ? "" : "; Secure"}`}`,
   };
 }
