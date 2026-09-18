@@ -2,7 +2,13 @@
 
 *Sounds of words.*
 
-A musical toy from **[Fluxus](https://fluxus.io/), an AI product studio**. An instrument you play with words. TypeSafe interprets a short description; the original Plaits and Marbles DSP, compiled to WebAssembly, turns the resulting typed judgments into sound inside a Web Audio worklet.
+A musical toy from **[Fluxus](https://fluxus.io/), an AI product studio**. An instrument you play with words.
+
+**[Play Textured →](https://textured.fyi/)**
+
+A sound description can be a preset you can read and share. Textured explores how far a few typed judgments can take that idea: TypeSafe interprets your words, and code maps those judgments onto a synthesiser running in your browser. Turn the knobs to make it yours, or share the words for someone else to interpret. Each interpretation can be a little different.
+
+[![Textured playing “An underwater cathedral, slowly waking”, with a live waveform, two blended voices and six character knobs.](docs/images/textured.png)](https://textured.fyi/)
 
 ## Run locally
 
@@ -31,6 +37,8 @@ Drone notes use a light portamento (roughly 75ms to travel 95% of an interval). 
 Patch values ease from the current sound to their new settings over 750ms. Sound-family and playing-style changes crossfade between two preallocated voice pairs; only the active pair renders once the fade finishes. Rapid family changes finish the current fade and then move to the latest requested family. Effect parameters settle over roughly the same time. Scale selection retunes note targets immediately, preserving the short note glide.
 
 ## How it works
+
+TypeSafe interprets a short description; the original Plaits and Marbles DSP, compiled to WebAssembly, turns the resulting typed judgments into sound inside a Web Audio worklet.
 
 One request asks eleven independent questions over the same description:
 
