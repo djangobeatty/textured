@@ -4,27 +4,86 @@
 
 A musical toy from **[Fluxus](https://fluxus.io/), an AI product studio**. An instrument you play with words.
 
-**[Play Textured →](https://textured.fyi/)**
+**[Play Textured →](https://textured.fyi/)** · [Set up your own copy](#set-up-your-own-copy)
 
 A sound description can be a preset you can read and share. Textured explores how far a few typed judgments can take that idea: TypeSafe interprets your words, and code maps those judgments onto a synthesiser running in your browser. Turn the knobs to make it yours, or share the words for someone else to interpret. Each interpretation can be a little different.
 
 [![Textured playing “An underwater cathedral, slowly waking”, with a live waveform, two blended voices and six character knobs.](docs/images/textured.png)](https://textured.fyi/)
 
-## Run locally
+## Set up your own copy
 
-Requires Node 22.13+ (Node 24 recommended). A TypeSafe API key enables interpretation; playback and manual controls work without one.
+You need Git, Node.js 24 (recommended; minimum 22.13), and a **TypeSafe API key** to turn words into sounds. Jev is the model; the key comes from TypeSafe. Playback and manual controls work without a key. Running locally needs no Cloudflare account or C++ toolchain.
+
+1. Sign in to the [TypeSafe console and create an API key](https://console.typesafe.ai/settings/keys), following their [quickstart](https://docs.typesafe.ai/introduction/quickstart). If your account does not have access yet, check [TypeSafe's access options](https://typesafe.ai/).
+2. Use the coding-agent prompt below, or follow the manual commands. Keep the key in your local `.env.local` file; it is ignored by Git. Do not paste it into a chat, commit it, or put it in browser code.
+3. Open the local player, type **a nervous elevator**, and click **Make sound**. This calls TypeSafe using your account; its API usage is billed separately from your coding agent. **Play** on the initial patch needs no API call.
+
+### Give this to your coding agent
+
+Copy this entire block into a coding agent that can work with local files and run a terminal:
+
+```text
+Set up Textured locally from https://github.com/djangobeatty/textured.
+
+Clone the repo, or use my existing checkout without overwriting my work.
+Read its README and package.json. Use Node.js 24 and install with npm ci.
+Create .env.local from .env.example only if it does not already exist.
+Tell me the file's full path so I can enter my TypeSafe API key privately
+as TYPESAFE_API_KEY. Never ask me to paste the key into chat, print it,
+commit it, or expose it in browser code. I can leave it blank to try the
+manual instrument first.
+
+Run npm run build, then npm run db:setup to initialize the local database,
+then npm run dev. Keep TURNSTILE_REQUIRED=false for local development.
+This setup uses a local Cloudflare emulator; it needs no Cloudflare login
+and must not deploy or create any remote resources.
+
+Check that /api/interpret returns HTTP 200 with a daily allowance. If I
+have added a key, check configured is true without displaying the key.
+These checks must not submit a description or make a paid model call.
+Open the local URL printed by the server. Leave it running and tell me
+how to stop and restart it. I will use Make sound to test my first
+description; Play and the manual controls also work without a key.
+```
+
+For changes to the Jev questions or mappings, the optional official
+[TypeSafe coding-agent skill](https://docs.typesafe.ai/agent-skill) is useful.
+
+### Run locally by hand
 
 ```sh
+git clone https://github.com/djangobeatty/textured.git
+cd textured
 npm ci
 cp .env.example .env.local
-# Optional: set TYPESAFE_API_KEY in .env.local to interpret descriptions
+```
+
+Open `.env.local` in your editor and set `TYPESAFE_API_KEY` to your own key
+(or leave it blank for manual playback). Keep `TURNSTILE_REQUIRED=false` locally.
+If you already have a checkout or `.env.local`, reuse it instead of overwriting it.
+
+```sh
 npm run build
 # First run only: initialize local storage
 npm run db:setup
-npm start
+npm run dev
 ```
 
-Open the local URL printed by the server. Click **Make sound** to interpret your words, or **Play** to hear the initial patch. Edit the description while playing to reshape the sound after a short pause in typing. Play/Stop, voices and blend, playing style, volume, and all knobs and sliders work independently of inference. The initial patch is explicitly hand-tuned; it works without a key. The first play loads the audio engines.
+Stop the server with Ctrl+C; restart it with `npm run dev`. Restart after changing
+`.env.local`. To host your own public player, follow the separate
+[Cloudflare deployment guide](docs/embedding.md#deploy-to-your-cloudflare-account).
+
+### Check it is working
+
+At the local URL, the page should show today's description allowance. After adding
+a key, **Make sound** should change the controls and start the sound. If it reports
+that TypeSafe is not connected, check `TYPESAFE_API_KEY` in `.env.local` and restart
+the server. If the allowance cannot be checked, run `npm run db:setup` from the
+repository root. A rejected key needs checking in the TypeSafe console.
+
+### Playing the instrument
+
+Click **Make sound** to interpret your words, or **Play** to hear the initial patch. Edit the description while playing to reshape the sound after a short pause in typing. Play/Stop, voices and blend, playing style, volume, and all knobs and sliders work independently of inference. The initial patch is explicitly hand-tuned; it works without a key. The first play loads the audio engines.
 
 Try **An underwater cathedral, slowly waking**. Keep Movement low and turn up **Slow shifts** for a slowly evolving drone. Change Texture from 0 to 100 to move through the engine's timbre and morph parameters and add saturation. Increase Movement for wider, less repetitive melodies, irregular gates and faster timbral modulation.
 
