@@ -20,30 +20,10 @@ You need Git, Node.js 24 (recommended; minimum 22.13), and a **TypeSafe API key*
 
 ### Give this to your coding agent
 
-Copy this entire block into a coding agent that can work with local files and run a terminal:
+Paste this into your coding agent:
 
 ```text
-Set up Textured locally from https://github.com/djangobeatty/textured.
-
-Clone the repo, or use my existing checkout without overwriting my work.
-Read its README and package.json. Use Node.js 24 and install with npm ci.
-Create .env.local from .env.example only if it does not already exist.
-Tell me the file's full path so I can enter my TypeSafe API key privately
-as TYPESAFE_API_KEY. Never ask me to paste the key into chat, print it,
-commit it, or expose it in browser code. I can leave it blank to try the
-manual instrument first.
-
-Run npm run build, then npm run db:setup to initialize the local database,
-then npm run dev. Keep TURNSTILE_REQUIRED=false for local development.
-This setup uses a local Cloudflare emulator; it needs no Cloudflare login
-and must not deploy or create any remote resources.
-
-Check that /api/interpret returns HTTP 200 with a daily allowance. If I
-have added a key, check configured is true without displaying the key.
-These checks must not submit a description or make a paid model call.
-Open the local URL printed by the server. Leave it running and tell me
-how to stop and restart it. I will use Make sound to test my first
-description; Play and the manual controls also work without a key.
+Set up https://github.com/djangobeatty/textured locally using its README, help me add my TypeSafe API key privately, and open the player.
 ```
 
 For changes to the Jev questions or mappings, the optional official
