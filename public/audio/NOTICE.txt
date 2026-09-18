@@ -1,0 +1,18 @@
+Textured audio engines
+
+Plaits and Marbles DSP: Copyright (c) Émilie Gillet, MIT License.
+Original source: https://github.com/pichenettes/eurorack
+Revision: 08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4
+Support library: https://github.com/pichenettes/stmlib
+Revision: d18def816c51d1da0c108236928b2bbd25c17481
+
+C wrappers adapted from NOODLERACK, Copyright (c) 2026 stets, MIT License.
+https://github.com/stets/noodlerack-dsp-build
+Revision: e43024f77afd187ad051cfb4cdbc3a433805472e
+
+The DSP binaries are compiled from the original firmware sources with
+Emscripten 4.0.20. See LICENSE.txt for the MIT license and scripts/build-dsp.py
+in the source distribution for the reproducible build recipe.
+
+Mutable Instruments is a registered trademark. Textured is an
+independent project and is not affiliated with or endorsed by its creators.
